@@ -3,62 +3,66 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { CollegeInfo, SearchParams, GroundingSource } from "../types";
 import { NOT_AVAILABLE } from "../constants";
 
-const CACHE_PREFIX = "clg_fnd_";
+const CACHE_PREFIX = "clg_fnd_v3_";
 
 const getCacheKey = (params: SearchParams): string => {
-  // Shorter, safer cache key
   return CACHE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(params)))).substring(0, 40);
 };
 
-export const searchCollegeInfo = async (params: SearchParams): Promise<{ college: CollegeInfo; sources: GroundingSource[] }> => {
+export const searchCollegeInfo = async (params: SearchParams): Promise<{ colleges: CollegeInfo[]; sources: GroundingSource[] }> => {
   const cacheKey = getCacheKey(params);
   const cached = localStorage.getItem(cacheKey);
   
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      // Ensure we have a valid object
-      if (parsed && parsed.college) return parsed;
+      if (parsed && parsed.colleges) return parsed;
     } catch (e) {
       localStorage.removeItem(cacheKey);
     }
   }
 
-  // Always use process.env.API_KEY directly when initializing GoogleGenAI
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Minimalist prompt for faster processing
-  // Emphasis on district to disambiguate same-named colleges
-  const prompt = `Search for Indian college details:
-Name: ${params.collegeName}
+  // Adjusted prompt to handle multiple specific names or a single query
+  const prompt = `Search for Indian college details. 
+You are given one or more institution names or a general query. 
+If the input contains a list of specific colleges, find and return data for EACH of those specific colleges. 
+If it is a single name, return details for that college and any other highly relevant institutions in the same area.
+
+Input Name(s)/Query: ${params.collegeName}
 State: ${params.state}
 District: ${params.district || 'Not Specified'}
 Filters: ${params.collegeType || 'Any'}, ${params.accreditation || 'Any'}, ${params.courses?.join(',') || 'Any'}
 
-Required JSON structure (use "Not Available" for missing data):
-{
-  "name": string,
-  "state": string,
-  "district": string,
-  "universityAffiliation": string,
-  "collegeType": string,
-  "coursesOffered": string[],
-  "principalName": string,
-  "principalContact": string,
-  "principalEmail": string,
-  "tpoName": string,
-  "tpoContact": string,
-  "tpoEmail": string,
-  "website": string,
-  "aisheCode": string,
-  "establishedYear": string,
-  "accreditation": string,
-  "totalStudentStrength": string,
-  "facultyStrength": string,
-  "address": string,
-  "pinCode": string,
-  "confidenceScore": number (0-1)
-}`;
+Required JSON structure (Return an ARRAY of objects):
+[
+  {
+    "name": string,
+    "state": string,
+    "district": string,
+    "universityAffiliation": string,
+    "collegeType": string,
+    "coursesOffered": string[],
+    "principalName": string,
+    "principalContact": string,
+    "principalEmail": string,
+    "tpoName": string,
+    "tpoContact": string,
+    "tpoEmail": string,
+    "website": string,
+    "aisheCode": string,
+    "establishedYear": string,
+    "accreditation": string,
+    "totalStudentStrength": string,
+    "facultyStrength": string,
+    "address": string,
+    "pinCode": string,
+    "confidenceScore": number (0-1)
+  }
+]
+
+IMPORTANT: Provide verified information. If a specific college in the list cannot be found, omit it from the array. Aim for a maximum of 10 results total.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -74,8 +78,8 @@ Required JSON structure (use "Not Available" for missing data):
     const text = response.text;
     if (!text) throw new Error("Empty response from AI");
     
-    // Parse the JSON response text
-    const data = JSON.parse(text.trim());
+    let rawData = JSON.parse(text.trim());
+    const dataArray = Array.isArray(rawData) ? rawData : [rawData];
 
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const sources: GroundingSource[] = groundingChunks
@@ -85,9 +89,9 @@ Required JSON structure (use "Not Available" for missing data):
         uri: chunk.web.uri
       }));
 
-    const college: CollegeInfo = {
+    const colleges: CollegeInfo[] = dataArray.map((data: any) => ({
       id: Math.random().toString(36).substr(2, 9),
-      name: data.name || params.collegeName,
+      name: data.name || "Unknown Institution",
       state: data.state || params.state,
       district: data.district || params.district || NOT_AVAILABLE,
       universityAffiliation: data.universityAffiliation || NOT_AVAILABLE,
@@ -110,13 +114,13 @@ Required JSON structure (use "Not Available" for missing data):
       isVerified: (data.confidenceScore || 0) > 0.7,
       confidenceScore: data.confidenceScore || 0,
       sources: sources.map(s => s.uri)
-    };
+    }));
 
-    const result = { college, sources };
+    const result = { colleges, sources };
     localStorage.setItem(cacheKey, JSON.stringify(result));
     return result;
   } catch (err) {
     console.error("Gemini Search Error:", err);
-    throw new Error("The search took too long or failed. Please try a more specific name.");
+    throw new Error("The search failed. Please try again with fewer names or more specific details.");
   }
 };

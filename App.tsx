@@ -11,7 +11,7 @@ import { CollegeInfo, SearchParams } from './types';
 import * as XLSX from 'xlsx';
 
 const App: React.FC = () => {
-  const [college, setCollege] = useState<CollegeInfo | null>(null);
+  const [colleges, setColleges] = useState<CollegeInfo[]>([]);
   const [bulkResults, setBulkResults] = useState<CollegeInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,12 +20,12 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
 
   const steps = [
-    "Initiating deep search...",
-    "Querying official Indian education portals...",
-    "Verifying AISHE and NIRF databases...",
-    "Contacting institution records...",
-    "Structuring verified information...",
-    "Finalizing report..."
+    "Initiating multi-vector search...",
+    "Scanning state university databases...",
+    "Checking AISHE registration records...",
+    "Retrieving administrative profiles...",
+    "Correlating academic stats...",
+    "Finalizing results list..."
   ];
 
   useEffect(() => {
@@ -42,22 +42,40 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isLoading]);
 
-  const handleSearch = async (params: SearchParams) => {
+  const handleSearch = async (queries: SearchParams[]) => {
     setIsLoading(true);
     setError(null);
-    setCollege(null);
+    setColleges([]);
     setBulkResults([]);
+    
     try {
-      const result = await searchCollegeInfo(params);
-      setCollege(result.college);
+      const allFoundColleges: CollegeInfo[] = [];
+      
+      // Process queries in parallel for efficiency
+      const searchPromises = queries.map(query => searchCollegeInfo(query));
+      const results = await Promise.all(searchPromises);
+      
+      results.forEach(res => {
+        if (res.colleges && res.colleges.length > 0) {
+          allFoundColleges.push(...res.colleges);
+        }
+      });
+
+      if (allFoundColleges.length === 0) {
+        setError("No institutions found matching your specific criteria. Please check the spelling or location.");
+      } else {
+        setColleges(allFoundColleges);
+      }
     } catch (err: any) {
-      setError(err.message || "Request timed out. Please try again.");
+      console.error("Batch search error:", err);
+      setError(err.message || "Request timed out or encountered an error. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const downloadBulk = (data: CollegeInfo[]) => {
+    if (data.length === 0) return;
     const worksheet = XLSX.utils.json_to_sheet(data.map(c => ({
       'College Name': c.name,
       'State': c.state,
@@ -82,12 +100,8 @@ const App: React.FC = () => {
       'Confidence Score': c.confidenceScore
     })));
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Enriched Data");
-    XLSX.writeFile(workbook, `College_Enrichment_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
-  };
-
-  const handleExport = (data: CollegeInfo) => {
-    downloadBulk([data]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "College Data");
+    XLSX.writeFile(workbook, `College_Search_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
   return (
@@ -98,12 +112,12 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto py-8 md:py-12">
           
           <div className="flex justify-center mb-12">
-            <div className="bg-slate-200 p-1 rounded-2xl flex">
+            <div className="bg-slate-200 p-1 rounded-2xl flex shadow-inner">
               <button 
                 onClick={() => setActiveTab('single')}
                 className={`px-8 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'single' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Single Search
+                Detailed Search
               </button>
               <button 
                 onClick={() => setActiveTab('bulk')}
@@ -114,14 +128,14 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {!college && !isLoading && !error && activeTab === 'single' && (
+          {colleges.length === 0 && !isLoading && !error && activeTab === 'single' && (
             <div className="text-center mb-8 px-4 animate-in fade-in duration-500">
               <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 leading-tight">
                 Verified Data for <br />
                 <span className="text-indigo-600">Indian Colleges</span>
               </h1>
               <p className="text-slate-500 text-lg md:text-xl max-w-2xl mx-auto">
-                Instant access to affiliation, faculty strength, and management contacts.
+                Find multiple college profiles at once with precise state and district filtering.
               </p>
             </div>
           )}
@@ -129,6 +143,7 @@ const App: React.FC = () => {
           {activeTab === 'single' ? (
             <>
               <SearchForm onSearch={handleSearch} isLoading={isLoading} />
+              
               {isLoading && (
                 <div className="max-w-4xl mx-auto px-4 py-8 text-center animate-pulse">
                   <div className="inline-flex items-center gap-3 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-full font-bold text-sm mb-6 border border-indigo-100 shadow-sm">
@@ -139,6 +154,34 @@ const App: React.FC = () => {
                     {steps[loadingStep]} ({timer}s)
                   </div>
                   <LoadingSkeleton />
+                </div>
+              )}
+
+              {colleges.length > 0 && !isLoading && (
+                <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="max-w-6xl mx-auto px-4 flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-800">
+                      Found {colleges.length} Matching Institutions
+                    </h2>
+                    <button 
+                      onClick={() => downloadBulk(colleges)}
+                      className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      Export All Findings
+                    </button>
+                  </div>
+                  {colleges.map((col) => (
+                    <CollegeCard key={col.id} college={col} onExport={() => downloadBulk([col])} />
+                  ))}
+                  <div className="text-center pb-12">
+                    <button 
+                      onClick={() => setColleges([])}
+                      className="text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest text-xs"
+                    >
+                      Clear All Results
+                    </button>
+                  </div>
                 </div>
               )}
             </>
@@ -186,35 +229,29 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
-
-          {college && !isLoading && activeTab === 'single' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <CollegeCard college={college} onExport={() => handleExport(college)} />
-            </div>
-          )}
         </div>
       </main>
 
       <footer className="bg-white border-t border-slate-200 py-12 px-6 mt-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-center md:text-left">
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-indigo-600 font-bold mb-4">Indian College Info Finder</h3>
-            <p className="text-slate-500 max-w-sm mx-auto md:mx-0">
-              Verified AI engine for higher education records. Instant data enrichment for professionals.
+            <h3 className="text-indigo-600 font-bold mb-4 uppercase tracking-wider text-sm">College Finder India</h3>
+            <p className="text-slate-500 max-w-sm mx-auto md:mx-0 text-sm leading-relaxed">
+              Advanced AI-driven verification engine for Indian higher education. Bridging the gap between students and verified institutional records.
             </p>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-4 uppercase text-xs tracking-widest">Tools</h4>
+            <h4 className="font-bold text-slate-900 mb-4 uppercase text-xs tracking-widest">Navigation</h4>
             <ul className="space-y-2 text-sm text-slate-500">
-              <li><button onClick={() => setActiveTab('single')} className="hover:text-indigo-600">Single Search</button></li>
+              <li><button onClick={() => setActiveTab('single')} className="hover:text-indigo-600">Multi-Search</button></li>
               <li><button onClick={() => setActiveTab('bulk')} className="hover:text-indigo-600">Bulk Enrichment</button></li>
-              <li><a href="https://aishe.gov.in/" className="hover:text-indigo-600 transition-colors">AISHE Portal</a></li>
+              <li><a href="https://aishe.gov.in/" className="hover:text-indigo-600 transition-colors">Official AISHE</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-4 uppercase text-xs tracking-widest">Performance</h4>
-            <p className="text-xs text-slate-400">
-              Bulk processing supports up to 50 colleges per batch. Uses <strong>Gemini 3 Flash</strong> for near-instant results.
+            <h4 className="font-bold text-slate-900 mb-4 uppercase text-xs tracking-widest">Search Performance</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Gemini 3 Flash delivers results across 40,000+ Indian institutions in seconds. Optimized for low-latency web grounding.
             </p>
           </div>
         </div>

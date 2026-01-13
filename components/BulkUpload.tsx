@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { searchCollegeInfo } from '../services/geminiService';
@@ -118,7 +117,12 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete }) => {
           state: row.state,
           district: row.district || undefined 
         });
-        results.push(result.college);
+        
+        // Fix: result.colleges is an array, take the first match if available
+        if (result.colleges && result.colleges.length > 0) {
+          results.push(result.colleges[0]);
+        }
+        
         setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'completed' } : r));
       } catch (err) {
         console.error(`Failed to process ${row.name}:`, err);

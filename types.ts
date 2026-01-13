@@ -35,6 +35,13 @@ export interface SearchParams {
   courses?: string[];
 }
 
+export interface QueryRow {
+  id: string;
+  name: string;
+  state: string;
+  district: string;
+}
+
 export interface GroundingSource {
   title: string;
   uri: string;
