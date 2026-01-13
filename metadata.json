@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Indian College Info Finder",
+  "description": "A comprehensive search engine for Indian colleges providing detailed affiliation, contact, and academic information powered by Gemini with Google Search grounding.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
