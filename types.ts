@@ -1,4 +1,22 @@
 
+export interface SchoolInfo {
+  name: string;
+  headName: string;
+  headContact: string;
+  headEmail: string;
+  courses: string[];
+}
+
+export interface CollegeEvent {
+  collegeName: string;
+  eventName: string;
+  date: string;
+  venue: string;
+  description: string;
+  type: 'Cultural' | 'Technical' | 'Academic' | 'Sports' | 'Other';
+  status: 'Upcoming' | 'Past' | 'Ongoing';
+}
+
 export interface CollegeInfo {
   id: string;
   name: string;
@@ -24,6 +42,7 @@ export interface CollegeInfo {
   isVerified: boolean;
   confidenceScore: number;
   sources: string[];
+  schools?: SchoolInfo[];
 }
 
 export interface SearchParams {
@@ -33,6 +52,12 @@ export interface SearchParams {
   collegeType?: string;
   accreditation?: string;
   courses?: string[];
+}
+
+export interface AreaSearchParams {
+  state: string;
+  district: string;
+  year: string;
 }
 
 export interface QueryRow {
@@ -45,4 +70,18 @@ export interface QueryRow {
 export interface GroundingSource {
   title: string;
   uri: string;
+}
+
+export interface DashboardAnalysis {
+  insightSummary: string;
+  keyTakeaways: string[];
+  suggestedActions: string[];
+  dataQualityScore: number;
+  swotAnalysis?: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  executiveBriefing?: string;
 }

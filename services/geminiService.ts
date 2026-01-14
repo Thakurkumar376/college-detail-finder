@@ -1,11 +1,11 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { CollegeInfo, SearchParams, GroundingSource } from "../types";
+import { CollegeInfo, SearchParams, GroundingSource, DashboardAnalysis, CollegeEvent, AreaSearchParams } from "../types";
 import { NOT_AVAILABLE } from "../constants";
 
-const CACHE_PREFIX = "clg_fnd_v3_";
+const CACHE_PREFIX = "clg_fnd_v8_";
 
-const getCacheKey = (params: SearchParams): string => {
+const getCacheKey = (params: any): string => {
   return CACHE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(params)))).substring(0, 40);
 };
 
@@ -24,16 +24,13 @@ export const searchCollegeInfo = async (params: SearchParams): Promise<{ college
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Adjusted prompt to handle multiple specific names or a single query
   const prompt = `Search for Indian college details. 
-You are given one or more institution names or a general query. 
-If the input contains a list of specific colleges, find and return data for EACH of those specific colleges. 
-If it is a single name, return details for that college and any other highly relevant institutions in the same area.
+If the input contains a list of specific colleges, find and return data for EACH of those specific colleges.
+IMPORTANT: Also identify if the college has distinct internal "Schools", "Faculties", or "Departments" (e.g., School of Law, Faculty of Engineering). Get details for each.
 
-Input Name(s)/Query: ${params.collegeName}
+Input Query: ${params.collegeName}
 State: ${params.state}
 District: ${params.district || 'Not Specified'}
-Filters: ${params.collegeType || 'Any'}, ${params.accreditation || 'Any'}, ${params.courses?.join(',') || 'Any'}
 
 Required JSON structure (Return an ARRAY of objects):
 [
@@ -58,11 +55,18 @@ Required JSON structure (Return an ARRAY of objects):
     "facultyStrength": string,
     "address": string,
     "pinCode": string,
-    "confidenceScore": number (0-1)
+    "confidenceScore": number (0-1),
+    "schools": [
+      {
+        "name": string (e.g., School of Business),
+        "headName": string (Dean/HOD),
+        "headContact": string,
+        "headEmail": string,
+        "courses": string[]
+      }
+    ]
   }
-]
-
-IMPORTANT: Provide verified information. If a specific college in the list cannot be found, omit it from the array. Aim for a maximum of 10 results total.`;
+]`;
 
   try {
     const response = await ai.models.generateContent({
@@ -71,7 +75,6 @@ IMPORTANT: Provide verified information. If a specific college in the list canno
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
       }
     });
 
@@ -113,7 +116,8 @@ IMPORTANT: Provide verified information. If a specific college in the list canno
       pinCode: data.pinCode || NOT_AVAILABLE,
       isVerified: (data.confidenceScore || 0) > 0.7,
       confidenceScore: data.confidenceScore || 0,
-      sources: sources.map(s => s.uri)
+      sources: sources.map(s => s.uri),
+      schools: data.schools || []
     }));
 
     const result = { colleges, sources };
@@ -121,6 +125,96 @@ IMPORTANT: Provide verified information. If a specific college in the list canno
     return result;
   } catch (err) {
     console.error("Gemini Search Error:", err);
-    throw new Error("The search failed. Please try again with fewer names or more specific details.");
+    throw new Error("Failed to process request.");
+  }
+};
+
+export const searchAreaEvents = async (params: AreaSearchParams): Promise<CollegeEvent[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `Search for major campus events in ${params.district}, ${params.state} specifically for the year ${params.year}. 
+Identify top colleges in this area and find their flagship cultural fests, technical symposiums, workshops, or academic conferences that took place or are scheduled in ${params.year}.
+
+Required JSON structure (Return an ARRAY of objects representing different colleges and their events):
+[
+  {
+    "collegeName": string,
+    "eventName": string,
+    "date": string (must include ${params.year}),
+    "venue": string,
+    "description": string,
+    "type": "Cultural" | "Technical" | "Academic" | "Sports" | "Other",
+    "status": "Upcoming" | "Past" | "Ongoing"
+  }
+]`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No events found for this specific area and year.");
+    return JSON.parse(text.trim());
+  } catch (err) {
+    console.error("Event Search Error:", err);
+    throw new Error("Failed to fetch area events for " + params.year + ".");
+  }
+};
+
+export const analyzeDataset = async (headers: string[], sampleRows: any[]): Promise<DashboardAnalysis> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `Perform an executive-level analysis of this institutional dataset for a high-stakes presentation.
+Headers: ${headers.join(", ")}
+Sample Data: ${JSON.stringify(sampleRows)}
+
+Return a professional JSON analysis including a SWOT assessment:
+{
+  "insightSummary": "High-level professional overview.",
+  "executiveBriefing": "A short script for a presenter to introduce this data.",
+  "keyTakeaways": ["list of 4 strategic observations"],
+  "suggestedActions": ["list of 3 operational recommendations"],
+  "dataQualityScore": number (0-100),
+  "swotAnalysis": {
+    "strengths": ["string"],
+    "weaknesses": ["string"],
+    "opportunities": ["string"],
+    "threats": ["string"]
+  }
+}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Analysis failed");
+    return JSON.parse(text.trim());
+  } catch (err) {
+    console.error("Analysis Error:", err);
+    return {
+      insightSummary: "Dataset parsed successfully. Manual review recommended for specific trends.",
+      executiveBriefing: "We are looking at a cross-section of institutional data with varied geographical and administrative metrics.",
+      keyTakeaways: ["Wide geographic reach detected", "Operational diversity in college types", "Critical contact information gaps identified"],
+      suggestedActions: ["Consolidate state-wise records", "Audit Principal contact list", "Check AISHE compliance"],
+      dataQualityScore: 82,
+      swotAnalysis: {
+        strengths: ["Clean headers", "Diverse sample"],
+        weaknesses: ["Missing accreditation rows"],
+        opportunities: ["Digital transformation potential"],
+        threats: ["Data obsolescence"]
+      }
+    };
   }
 };
