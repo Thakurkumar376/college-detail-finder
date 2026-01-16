@@ -23,6 +23,7 @@ export interface CompanyInfo {
   city: string;
   state: string;
   location: string;
+  role: string;
   hrName: string;
   hrContact: string;
   hrEmail: string;
@@ -31,6 +32,16 @@ export interface CompanyInfo {
   website: string;
   confidenceScore: number;
   verificationProof: string;
+  isLinkedInVerified?: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  verificationDetails?: {
+    linkedInStatus: string;
+    emailStatus: string;
+    phoneStatus: string;
+  };
+  auditTrail?: string;
+  sourceUrl?: string;
 }
 
 export interface CollegeInfo {

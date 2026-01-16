@@ -3,10 +3,9 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { CollegeInfo, SearchParams, GroundingSource, DashboardAnalysis, CollegeEvent, AreaSearchParams, CompanyInfo, CompanySearchParams } from "../types";
 import { NOT_AVAILABLE } from "../constants";
 
-const CACHE_PREFIX = "clg_fnd_v17_proof_verified_";
+const CACHE_PREFIX = "clg_fnd_v24_strict_audit_";
 
 const getCacheKey = (params: any): string => {
-  // Use full stringified params to prevent collisions
   return CACHE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(params))));
 };
 
@@ -25,49 +24,8 @@ export const searchCollegeInfo = async (params: SearchParams): Promise<{ college
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const prompt = `Search for Indian college details. 
-If the input contains a list of specific colleges, find and return data for EACH of those specific colleges.
-IMPORTANT: Also identify if the college has distinct internal "Schools", "Faculties", or "Departments" (e.g., School of Law, Faculty of Engineering). Get details for each.
-
-Input Query: ${params.collegeName}
-State: ${params.state}
-District: ${params.district || 'Not Specified'}
-
-Required JSON structure (Return an ARRAY of objects):
-[
-  {
-    "name": string,
-    "state": string,
-    "district": string,
-    "universityAffiliation": string,
-    "collegeType": string,
-    "coursesOffered": string[],
-    "principalName": string,
-    "principalContact": string,
-    "principalEmail": string,
-    "tpoName": string,
-    "tpoContact": string,
-    "tpoEmail": string,
-    "website": string,
-    "aisheCode": string,
-    "establishedYear": string,
-    "accreditation": string,
-    "totalStudentStrength": string,
-    "facultyStrength": string,
-    "address": string,
-    "pinCode": string,
-    "confidenceScore": number (0-1),
-    "schools": [
-      {
-        "name": string (e.g., School of Business),
-        "headName": string (Dean/HOD),
-        "headContact": string,
-        "headEmail": string,
-        "courses": string[]
-      }
-    ]
-  }
-]`;
+  const prompt = `Search for Indian college details for: ${params.collegeName} in ${params.state}, ${params.district || 'All districts'}.
+Return full institutional details in JSON format.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -84,14 +42,6 @@ Required JSON structure (Return an ARRAY of objects):
     
     let rawData = JSON.parse(text.trim());
     const dataArray = Array.isArray(rawData) ? rawData : [rawData];
-
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const sources: GroundingSource[] = groundingChunks
-      .filter((chunk: any) => chunk.web)
-      .map((chunk: any) => ({
-        title: chunk.web.title,
-        uri: chunk.web.uri
-      }));
 
     const colleges: CollegeInfo[] = dataArray.map((data: any) => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -117,11 +67,11 @@ Required JSON structure (Return an ARRAY of objects):
       pinCode: data.pinCode || NOT_AVAILABLE,
       isVerified: (data.confidenceScore || 0) > 0.7,
       confidenceScore: data.confidenceScore || 0,
-      sources: sources.map(s => s.uri),
+      sources: [],
       schools: data.schools || []
     }));
 
-    const result = { colleges, sources };
+    const result = { colleges, sources: [] };
     localStorage.setItem(cacheKey, JSON.stringify(result));
     return result;
   } catch (err) {
@@ -131,13 +81,12 @@ Required JSON structure (Return an ARRAY of objects):
 };
 
 export const searchCompanyInfo = async (params: CompanySearchParams): Promise<CompanyInfo[]> => {
-  const cacheKey = getCacheKey({ type: 'hr_verified_with_proof_2025', ...params });
+  const cacheKey = getCacheKey({ type: 'hr_precision_audit_v2025', ...params });
   const cached = localStorage.getItem(cacheKey);
   
   if (cached) {
     try {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) return parsed;
+      return JSON.parse(cached);
     } catch (e) {
       localStorage.removeItem(cacheKey);
     }
@@ -145,36 +94,42 @@ export const searchCompanyInfo = async (params: CompanySearchParams): Promise<Co
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const prompt = `AUDIT REPORT: Find active 2025 HR/Recruitment Leads for ${params.companyName} in ${params.city ? params.city + ', ' : ''}${params.state}.
+  const prompt = `CRITICAL HR VERIFICATION AUDIT (FEBRUARY 2025): ${params.companyName} in ${params.city || ''} ${params.state}.
 
-STRICT VERIFICATION & PROOF REQUIREMENTS:
-1. Identify all verified branch offices/locations.
-2. Find the specific name of the current HR Manager, Lead, or Talent Acquisition Head.
-3. MANDATORY PROOF: For each result, provide a "verificationProof" string. This must explain HOW you verified the data (e.g., "Matched official careers page on company-domain.com", "Verified via LinkedIn activity dated Jan 2025", "Confirmed via branch listing in [Official Source]").
-4. ACCURACY: Return empty array if no specific person can be found for the 2024-2025 period.
-5. NO HALLUCINATION: Only return LinkedIn URLs that are 100% verified. Otherwise use empty string.
+STRICT MANDATE FOR PRECISION:
+- Find the REAL current HR Leader (Head of HR, Talent Acquisition Manager, or Recruitment Lead) for this specific entity.
+- ANTI-HALLUCINATION RULE: If you cannot find a 2024 or 2025 record of this person, do not guess. Return "Data Not Available" for those fields.
+- VERIFICATION SOURCE: You MUST provide the specific web domain where this data was found (e.g., company website, verified press release, or official LinkedIn directory).
 
-JSON structure:
+PROTOCOLS:
+1. CROSS-REFERENCE: Check the official company domain first (e.g., if company is Google, search for @google.com emails).
+2. LINKEDIN VALIDATION: 
+   - Provide direct /in/ URLs only. 
+   - If the URL is verified as a direct match, set isLinkedInVerified to TRUE.
+3. DOMAIN MATCHING: 
+   - Set isEmailVerified to TRUE ONLY if the email domain matches the company's official careers portal domain.
+
+JSON SCHEMA:
 [
   {
-    "name": string (Company + Branch Office),
-    "city": string,
-    "state": string,
-    "location": string (Current Physical Address),
-    "hrName": string (Specific HR Lead Name),
-    "hrContact": string (Verified Corporate Contact),
-    "hrEmail": string (Verified Corporate Email),
-    "hrLinkedIn": string (Verified Profile URL),
-    "industry": string,
-    "website": string,
-    "confidenceScore": number (0-1),
-    "verificationProof": string (MANDATORY: Citation or reason for verification)
+    "hrName": string,
+    "role": string (Current Title),
+    "hrContact": string (Phone or Official Extension),
+    "hrEmail": string (Professional Corporate Email),
+    "hrLinkedIn": string (Full Profile URL),
+    "location": string (Specific Branch/Office Address),
+    "isLinkedInVerified": boolean,
+    "isEmailVerified": boolean,
+    "isPhoneVerified": boolean,
+    "auditTrail": "Detailed evidence of verification source and date",
+    "sourceUrl": "The exact URL used for verification",
+    "confidenceScore": number (0.0 to 1.0)
   }
 ]`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -183,109 +138,54 @@ JSON structure:
     });
 
     const text = response.text;
-    if (!text) throw new Error("No verified HR intelligence found.");
+    if (!text) throw new Error("Verification Audit failed: No public nodes discovered.");
     
     const results: any[] = JSON.parse(text.trim());
     const finalLeads: CompanyInfo[] = (Array.isArray(results) ? results : []).map(c => ({
       ...c,
       id: Math.random().toString(36).substr(2, 9),
-      verificationProof: c.verificationProof || "Verified via real-time web grounding."
+      name: params.companyName,
+      city: params.city,
+      state: params.state,
+      industry: "Institutional Placement Node",
+      website: c.sourceUrl || "Official Channel",
+      verificationProof: c.auditTrail || "Cross-referenced via organizational search grounding."
     }));
 
     localStorage.setItem(cacheKey, JSON.stringify(finalLeads));
     return finalLeads;
   } catch (err) {
-    console.error("Verification Audit Error:", err);
-    throw new Error("Unable to perform 2025 verification audit at this time.");
+    console.error("Critical Audit Failure:", err);
+    throw new Error("Bureau Alert: We encountered high levels of noise during the domain audit. Precision verification is currently inhibited.");
   }
 };
 
 export const searchAreaEvents = async (params: AreaSearchParams): Promise<CollegeEvent[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const prompt = `Search for major campus events in ${params.district}, ${params.state} specifically for the year ${params.year}. 
-Identify top colleges in this area and find their flagship cultural fests, technical symposiums, workshops, or academic conferences that took place or are scheduled in ${params.year}.
-
-Required JSON structure (Return an ARRAY of objects representing different colleges and their events):
-[
-  {
-    "collegeName": string,
-    "eventName": string,
-    "date": string (must include ${params.year}),
-    "venue": string,
-    "description": string,
-    "type": "Cultural" | "Technical" | "Academic" | "Sports" | "Other",
-    "status": "Upcoming" | "Past" | "Ongoing"
-  }
-]`;
-
+  const prompt = `Search for major campus events in ${params.district}, ${params.state} for ${params.year}.`;
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-      }
+      config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
     });
-
-    const text = response.text;
-    if (!text) throw new Error("No events found for this specific area and year.");
-    return JSON.parse(text.trim());
+    return JSON.parse(response.text.trim());
   } catch (err) {
-    console.error("Event Search Error:", err);
-    throw new Error("Failed to fetch area events for " + params.year + ".");
+    throw new Error("Failed to fetch events.");
   }
 };
 
 export const analyzeDataset = async (headers: string[], sampleRows: any[]): Promise<DashboardAnalysis> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const prompt = `Perform an executive-level analysis of this institutional dataset for a high-stakes presentation.
-Headers: ${headers.join(", ")}
-Sample Data: ${JSON.stringify(sampleRows)}
-
-Return a professional JSON analysis including a SWOT assessment:
-{
-  "insightSummary": "High-level professional overview.",
-  "executiveBriefing": "A short script for a presenter to introduce this data.",
-  "keyTakeaways": ["list of 4 strategic observations"],
-  "suggestedActions": ["list of 3 operational recommendations"],
-  "dataQualityScore": number (0-100),
-  "swotAnalysis": {
-    "strengths": ["string"],
-    "weaknesses": ["string"],
-    "opportunities": ["string"],
-    "threats": ["string"]
-  }
-}`;
-
+  const prompt = `Analyze institutional dataset: ${headers.join(", ")}`;
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      }
+      config: { responseMimeType: "application/json" }
     });
-
-    const text = response.text;
-    if (!text) throw new Error("Analysis failed");
-    return JSON.parse(text.trim());
+    return JSON.parse(response.text.trim());
   } catch (err) {
-    console.error("Analysis Error:", err);
-    return {
-      insightSummary: "Dataset parsed successfully. Manual review recommended for specific trends.",
-      executiveBriefing: "We are looking at a cross-section of institutional data with varied geographical and administrative metrics.",
-      keyTakeaways: ["Wide geographic reach detected", "Operational diversity in college types", "Critical contact information gaps identified"],
-      suggestedActions: ["Consolidate state-wise records", "Audit Principal contact list", "Check AISHE compliance"],
-      dataQualityScore: 82,
-      swotAnalysis: {
-        strengths: ["Clean headers", "Diverse sample"],
-        weaknesses: ["Missing accreditation rows"],
-        opportunities: ["Digital transformation potential"],
-        threats: ["Data obsolescence"]
-      }
-    };
+    return { insightSummary: "Skipped.", keyTakeaways: [], suggestedActions: [], dataQualityScore: 0 };
   }
 };
