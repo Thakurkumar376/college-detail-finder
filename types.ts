@@ -17,6 +17,22 @@ export interface CollegeEvent {
   status: 'Upcoming' | 'Past' | 'Ongoing';
 }
 
+export interface CompanyInfo {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  location: string;
+  hrName: string;
+  hrContact: string;
+  hrEmail: string;
+  hrLinkedIn: string;
+  industry: string;
+  website: string;
+  confidenceScore: number;
+  verificationProof: string;
+}
+
 export interface CollegeInfo {
   id: string;
   name: string;
@@ -58,6 +74,12 @@ export interface AreaSearchParams {
   state: string;
   district: string;
   year: string;
+}
+
+export interface CompanySearchParams {
+  companyName: string;
+  city: string;
+  state: string;
 }
 
 export interface QueryRow {

@@ -8,6 +8,7 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import BulkUpload from './components/BulkUpload';
 import DataDashboard from './components/DataDashboard';
 import AreaEventFinder from './components/AreaEventFinder';
+import CompanyFinder from './components/CompanyFinder';
 import { searchCollegeInfo } from './services/geminiService';
 import { CollegeInfo, SearchParams } from './types';
 import * as XLSX from 'xlsx';
@@ -19,7 +20,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
   const [timer, setTimer] = useState(0);
-  const [activeTab, setActiveTab] = useState<'single' | 'bulk' | 'dashboard' | 'events'>('single');
+  const [activeTab, setActiveTab] = useState<'single' | 'bulk' | 'dashboard' | 'events' | 'companies'>('single');
 
   const steps = [
     "Initiating multi-vector search...",
@@ -136,8 +137,24 @@ const App: React.FC = () => {
               >
                 Campus Events
               </button>
+              <button 
+                onClick={() => setActiveTab('companies')}
+                className={`px-4 md:px-8 py-3 rounded-2xl font-black text-xs md:text-sm transition-all ${activeTab === 'companies' ? 'bg-white shadow-lg text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Corporate Finder
+              </button>
             </div>
           </div>
+
+          {activeTab === 'companies' && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+               <div className="text-center mb-8 px-4">
+                  <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-4">Corporate Intelligence</h1>
+                  <p className="text-slate-500 max-w-xl mx-auto">Find company details and direct HR contact information for institutional placements and partnerships.</p>
+               </div>
+               <CompanyFinder />
+            </div>
+          )}
 
           {activeTab === 'events' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500">
@@ -260,6 +277,7 @@ const App: React.FC = () => {
               <li><button onClick={() => setActiveTab('bulk')} className="hover:text-indigo-600">Batch Tools</button></li>
               <li><button onClick={() => setActiveTab('dashboard')} className="hover:text-indigo-600">AI Analytics</button></li>
               <li><button onClick={() => setActiveTab('events')} className="hover:text-emerald-600">Campus Events</button></li>
+              <li><button onClick={() => setActiveTab('companies')} className="hover:text-slate-800">Corporate Finder</button></li>
             </ul>
           </div>
           <div>
