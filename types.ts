@@ -8,12 +8,19 @@ export interface SchoolInfo {
 }
 
 export interface CollegeEvent {
+  id: string;
   collegeName: string;
-  eventName: string;
-  date: string;
-  venue: string;
-  description: string;
-  type: 'Cultural' | 'Technical' | 'Academic' | 'Sports' | 'Other';
+  district: string;
+  state: string;
+  communityName: string;
+  leaderName: string;
+  leaderContact: string;
+  leaderEmail: string;
+  memberName: string;
+  memberContact: string;
+  memberEmail: string;
+  hackathonName: string;
+  eventDate?: string;
   status: 'Upcoming' | 'Past' | 'Ongoing';
 }
 
@@ -91,6 +98,8 @@ export interface CompanySearchParams {
   companyName: string;
   city: string;
   state: string;
+  leadName?: string;
+  leadRole?: string;
 }
 
 export interface QueryRow {

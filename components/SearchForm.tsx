@@ -29,10 +29,11 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Allow search if (Name is present AND State is present) OR (District is present AND State is present)
     const validQueries = rows
-      .filter(r => r.name.trim() && r.state)
+      .filter(r => (r.name.trim() || r.district.trim()) && r.state)
       .map(r => ({
-        collegeName: r.name.trim(),
+        collegeName: r.name.trim() || '',
         state: r.state,
         district: r.district.trim() || undefined
       }));
@@ -46,8 +47,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
     <section className="max-w-5xl mx-auto w-full px-4 py-8">
       <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
         <div className="bg-gradient-to-r from-indigo-600 to-violet-700 p-8">
-          <h2 className="text-2xl font-bold text-white">Multi-Institution Search</h2>
-          <p className="text-indigo-100 mt-2 opacity-90">Specify different states and districts for each institution to ensure exact matching.</p>
+          <h2 className="text-2xl font-bold text-white">Institutional Discovery</h2>
+          <p className="text-indigo-100 mt-2 opacity-90 font-medium">Search by name for exact matches, or provide a District to find all colleges in that area.</p>
         </div>
         
         <form onSubmit={handleSubmit} className="p-8">
@@ -59,18 +60,17 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
               >
                 <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">College Name</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">College Name (Optional if District set)</label>
                     <input
                       type="text"
-                      placeholder="e.g. IIT Madras"
+                      placeholder="Specific College Name"
                       value={row.name}
                       onChange={(e) => updateRow(row.id, 'name', e.target.value)}
-                      required
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">State</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">State (Required)</label>
                     <select
                       value={row.state}
                       onChange={(e) => updateRow(row.id, 'state', e.target.value)}
@@ -84,10 +84,10 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">District (Optional)</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">District</label>
                     <input
                       type="text"
-                      placeholder="e.g. Chennai"
+                      placeholder="e.g. Pune"
                       value={row.district}
                       onChange={(e) => updateRow(row.id, 'district', e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white font-medium"
@@ -100,7 +100,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
                     type="button"
                     onClick={() => removeRow(row.id)}
                     className="md:self-end mb-1 p-3 text-slate-400 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50"
-                    title="Remove Search Row"
+                    title="Remove Row"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -121,7 +121,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
               </svg>
-              Add Another Institution
+              Add Multiple Search
             </button>
 
             <button
@@ -135,21 +135,21 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Processing Batch...
+                  Processing Node Search...
                 </>
               ) : (
                 <>
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  Search All {rows.length > 0 ? `(${rows.length})` : ''}
+                  Discover Institutional Nodes
                 </>
               )}
             </button>
           </div>
           
           <div className="mt-4 text-center">
-             <p className="text-xs text-slate-400">Searching multiple colleges concurrently may take a few extra moments to ensure verified data accuracy.</p>
+             <p className="text-xs text-slate-400 font-bold">Leaving College Name empty while providing a District will trigger a complete district-wide census.</p>
           </div>
         </form>
       </div>

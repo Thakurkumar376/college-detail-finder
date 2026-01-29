@@ -117,7 +117,7 @@ const App: React.FC = () => {
                 onClick={() => setActiveTab('single')}
                 className={`px-4 md:px-8 py-3 rounded-2xl font-black text-xs md:text-sm transition-all ${activeTab === 'single' ? 'bg-white shadow-lg text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Detailed Search
+                Institutional Search
               </button>
               <button 
                 onClick={() => setActiveTab('bulk')}
@@ -141,7 +141,7 @@ const App: React.FC = () => {
                 onClick={() => setActiveTab('companies')}
                 className={`px-4 md:px-8 py-3 rounded-2xl font-black text-xs md:text-sm transition-all ${activeTab === 'companies' ? 'bg-white shadow-lg text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Corporate Finder
+                Colle Bureau
               </button>
             </div>
           </div>
@@ -149,8 +149,8 @@ const App: React.FC = () => {
           {activeTab === 'companies' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                <div className="text-center mb-8 px-4">
-                  <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-4">Corporate Intelligence</h1>
-                  <p className="text-slate-500 max-w-xl mx-auto">Find company details and direct HR contact information for institutional placements and partnerships.</p>
+                  <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-4">Colle Intelligence Bureau</h1>
+                  <p className="text-slate-500 max-w-xl mx-auto">High-precision verified HR leader nodes for institutional placements and corporate outreach.</p>
                </div>
                <CompanyFinder />
             </div>
@@ -169,11 +169,11 @@ const App: React.FC = () => {
           {activeTab === 'single' && colleges.length === 0 && !isLoading && !error && (
             <div className="text-center mb-8 px-4 animate-in fade-in duration-500">
               <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 leading-tight">
-                Verified Data for <br />
-                <span className="text-indigo-600">Indian Colleges</span>
+                Verified Institutional <br />
+                <span className="text-indigo-600">Intelligence</span>
               </h1>
               <p className="text-slate-500 text-lg md:text-xl max-w-2xl mx-auto">
-                Find multiple college profiles at once with precise state and district filtering.
+                Discover detailed college profiles with precise 2025 verification data.
               </p>
             </div>
           )}
@@ -265,9 +265,9 @@ const App: React.FC = () => {
       <footer className="bg-white border-t border-slate-100 py-16 px-6 mt-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-center md:text-left">
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-indigo-600 font-black mb-4 uppercase tracking-widest text-sm">College Finder Engine</h3>
+            <h3 className="text-indigo-600 font-black mb-4 uppercase tracking-widest text-sm">Colle Intelligence Bureau</h3>
             <p className="text-slate-500 max-w-sm mx-auto md:mx-0 font-medium leading-relaxed">
-              State-of-the-art AI verification for higher education. Use our analytics tools to turn institutional spreadsheets into actionable intelligence.
+              State-of-the-art AI verification for higher education and corporate recruitment. Turning institutional datasets into actionable intelligence.
             </p>
           </div>
           <div>
@@ -277,13 +277,13 @@ const App: React.FC = () => {
               <li><button onClick={() => setActiveTab('bulk')} className="hover:text-indigo-600">Batch Tools</button></li>
               <li><button onClick={() => setActiveTab('dashboard')} className="hover:text-indigo-600">AI Analytics</button></li>
               <li><button onClick={() => setActiveTab('events')} className="hover:text-emerald-600">Campus Events</button></li>
-              <li><button onClick={() => setActiveTab('companies')} className="hover:text-slate-800">Corporate Finder</button></li>
+              <li><button onClick={() => setActiveTab('companies')} className="hover:text-slate-800">Colle Bureau</button></li>
             </ul>
           </div>
           <div>
             <h4 className="font-black text-slate-900 mb-4 uppercase text-xs tracking-widest">Powered By</h4>
             <p className="text-xs text-slate-400 leading-relaxed font-bold">
-              Gemini 3 Flash Pro<br />Google Search Grounding<br />XLSX Data Engine v4.0
+              Gemini 3 Pro<br />Google Search Grounding<br />Institutional Audit Engine v2025
             </p>
           </div>
         </div>
